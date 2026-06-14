@@ -3,6 +3,7 @@ package com.renangsilveira.infrastructure.database
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.server.application.*
+import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.sql.Database
 
 object DatabaseFactory {
@@ -16,8 +17,10 @@ object DatabaseFactory {
         val user = config.property("database.user").getString()
         val password = config.property("database.password").getString()
 
+        val jdbcUrl = "jdbc:postgresql://$host:$port/$name"
+
         val hikariConfig = HikariConfig().apply {
-            jdbcUrl = "jdbc:postgresql://$host:$port/$name"
+            this.jdbcUrl = jdbcUrl
             username = user
             this.password = password
             driverClassName = "org.postgresql.Driver"
@@ -28,7 +31,15 @@ object DatabaseFactory {
             validationTimeout = 5_000
         }
 
-        Database.connect(HikariDataSource(hikariConfig))
-        application.log.info("Database connection pool initialized")
+        val dataSource = HikariDataSource(hikariConfig)
+
+        Flyway.configure()
+            .dataSource(dataSource)
+            .locations("classpath:db/migration")
+            .load()
+            .migrate()
+
+        Database.connect(dataSource)
+        application.log.info("Database connection pool initialized and migrations applied")
     }
 }
