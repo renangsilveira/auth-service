@@ -27,7 +27,7 @@ class ApplicationTest {
                 "jwt.refreshTokenExpirationMs" to "604800000"
             )
         }
-        application { module(connectDatabase = false) }
+        application { module(connectDatabase = false, connectRedis = false) }
         val response = client.get("/health")
         assertEquals(HttpStatusCode.OK, response.status)
     }

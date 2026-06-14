@@ -4,8 +4,10 @@ import com.renangsilveira.domain.security.PasswordHasher
 import com.renangsilveira.domain.token.RefreshTokenRepository
 import com.renangsilveira.domain.user.User
 import com.renangsilveira.domain.user.UserRepository
+import com.renangsilveira.infrastructure.redis.RedisClient
 import com.renangsilveira.infrastructure.security.JwtService
 import java.time.LocalDateTime
+import java.util.Date
 
 class AuthService(
     private val userRepository: UserRepository,
@@ -19,6 +21,7 @@ class AuthService(
         data object EmailAlreadyExists : AuthResult()
         data object InvalidCredentials : AuthResult()
         data object InvalidToken : AuthResult()
+        data object LoggedOut : AuthResult()
         data class Error(val message: String) : AuthResult()
     }
 
@@ -67,6 +70,23 @@ class AuthService(
 
         return AuthResult.TokenPair(newAccessToken, newRefreshToken)
     }
+
+    fun logout(accessToken: String): AuthResult {
+        val claims = jwtService.validateToken(accessToken)
+            ?: return AuthResult.InvalidToken
+
+        val expiration = claims.expiration
+        val ttlSeconds = ((expiration.time - Date().time) / 1000).coerceAtLeast(0)
+
+        if (ttlSeconds > 0) {
+            RedisClient.set("blacklist:$accessToken", "revoked", ttlSeconds)
+        }
+
+        return AuthResult.LoggedOut
+    }
+
+    fun isTokenBlacklisted(token: String): Boolean =
+        RedisClient.exists("blacklist:$token")
 
     private fun isValidEmail(email: String): Boolean =
         Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$").matches(email)

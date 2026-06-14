@@ -116,6 +116,30 @@ fun Application.configureRouting() {
                     )
                 }
             }
+
+            post("/logout") {
+                val authHeader = call.request.headers["Authorization"]
+                    ?: return@post call.respond(
+                        HttpStatusCode.Unauthorized,
+                        ErrorResponse("UNAUTHORIZED", "Missing Authorization header")
+                    )
+
+                val token = authHeader.removePrefix("Bearer ").trim()
+
+                when (authService.logout(token)) {
+                    is AuthService.AuthResult.LoggedOut -> call.respond(
+                        HttpStatusCode.NoContent
+                    )
+                    is AuthService.AuthResult.InvalidToken -> call.respond(
+                        HttpStatusCode.Unauthorized,
+                        ErrorResponse("UNAUTHORIZED", "Invalid or expired token")
+                    )
+                    else -> call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse("INTERNAL_ERROR", "Unexpected error")
+                    )
+                }
+            }
         }
     }
 }
