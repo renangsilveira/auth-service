@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+*.class
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+*.env
+.env.local
+
+# Logs
+*.log
+logs/
