@@ -10,7 +10,7 @@ class ApplicationTest {
 
     @Test
     fun `health endpoint returns 200`() = testApplication {
-        application { module() }
+        application { module(connectDatabase = false) }
         val response = client.get("/health")
         assertEquals(HttpStatusCode.OK, response.status)
     }
