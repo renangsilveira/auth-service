@@ -10,21 +10,24 @@ import com.renangsilveira.features.auth.UserResponse
 import com.renangsilveira.infrastructure.security.JwtService
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Serializable
 data class RefreshRequest(val refreshToken: String)
 
-fun Application.configureRouting() {
-    val userRepository         = UserRepository()
-    val refreshTokenRepository = RefreshTokenRepository()
-    val jwtService             = JwtService(this)
-    val authService            = AuthService(userRepository, refreshTokenRepository, jwtService)
-
+fun Application.configureRouting(
+    authService: AuthService,
+    jwtService: JwtService,
+    userRepository: UserRepository,
+    refreshTokenRepository: RefreshTokenRepository
+) {
     routing {
         get("/health") {
             call.respond(HttpStatusCode.OK, mapOf("status" to "UP"))
@@ -37,10 +40,7 @@ fun Application.configureRouting() {
                 when (val result = authService.register(request.email, request.password)) {
                     is AuthService.AuthResult.Success -> call.respond(
                         HttpStatusCode.Created,
-                        UserResponse(
-                            id    = result.user.id.toString(),
-                            email = result.user.email
-                        )
+                        UserResponse(id = result.user.id.toString(), email = result.user.email)
                     )
                     is AuthService.AuthResult.EmailAlreadyExists -> call.respond(
                         HttpStatusCode.Conflict,
@@ -127,9 +127,7 @@ fun Application.configureRouting() {
                 val token = authHeader.removePrefix("Bearer ").trim()
 
                 when (authService.logout(token)) {
-                    is AuthService.AuthResult.LoggedOut -> call.respond(
-                        HttpStatusCode.NoContent
-                    )
+                    is AuthService.AuthResult.LoggedOut -> call.respond(HttpStatusCode.NoContent)
                     is AuthService.AuthResult.InvalidToken -> call.respond(
                         HttpStatusCode.Unauthorized,
                         ErrorResponse("UNAUTHORIZED", "Invalid or expired token")
@@ -137,6 +135,23 @@ fun Application.configureRouting() {
                     else -> call.respond(
                         HttpStatusCode.InternalServerError,
                         ErrorResponse("INTERNAL_ERROR", "Unexpected error")
+                    )
+                }
+            }
+
+            authenticate("jwt-auth") {
+                get("/me") {
+                    val principal = call.principal<JWTPrincipal>()!!
+                    val userId    = UUID.fromString(principal.payload.subject)
+                    val user      = userRepository.findById(userId)
+                        ?: return@get call.respond(
+                            HttpStatusCode.NotFound,
+                            ErrorResponse("NOT_FOUND", "User not found")
+                        )
+
+                    call.respond(
+                        HttpStatusCode.OK,
+                        UserResponse(id = user.id.toString(), email = user.email)
                     )
                 }
             }

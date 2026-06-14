@@ -1,7 +1,11 @@
 package com.renangsilveira
 
+import com.renangsilveira.domain.token.RefreshTokenRepository
+import com.renangsilveira.domain.user.UserRepository
+import com.renangsilveira.features.auth.AuthService
 import com.renangsilveira.infrastructure.database.DatabaseFactory
 import com.renangsilveira.infrastructure.redis.RedisClient
+import com.renangsilveira.infrastructure.security.JwtService
 import com.renangsilveira.plugins.configureHTTP
 import com.renangsilveira.plugins.configureRouting
 import com.renangsilveira.plugins.configureSecurity
@@ -14,15 +18,17 @@ fun Application.module() {
 }
 
 fun Application.module(connectDatabase: Boolean = true, connectRedis: Boolean = true) {
-    if (connectDatabase) {
-        DatabaseFactory.init(this)
-    }
-    if (connectRedis) {
-        RedisClient.init(this)
-    }
+    if (connectDatabase) DatabaseFactory.init(this)
+    if (connectRedis) RedisClient.init(this)
+
+    val userRepository         = UserRepository()
+    val refreshTokenRepository = RefreshTokenRepository()
+    val jwtService             = JwtService(this)
+    val authService            = AuthService(userRepository, refreshTokenRepository, jwtService)
+
     configureHTTP()
     configureSerialization()
     configureStatusPages()
-    configureSecurity()
-    configureRouting()
+    configureSecurity(authService)
+    configureRouting(authService, jwtService, userRepository, refreshTokenRepository)
 }
