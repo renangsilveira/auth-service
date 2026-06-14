@@ -7,6 +7,7 @@ postgresql = "42.7.7"
 flyway = "11.9.1"
 lettuce = "6.7.1.RELEASE"
 bcrypt = "0.10.2"
+jjwt = "0.12.6"
 
 [libraries]
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
@@ -24,6 +25,10 @@ flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", versio
 lettuce = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
 
 bcrypt = { module = "at.favre.lib:bcrypt", version.ref = "bcrypt" }
+
+jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jjwt" }
+jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jjwt" }
+jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "jjwt" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
