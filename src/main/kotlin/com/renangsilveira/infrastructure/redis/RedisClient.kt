@@ -30,4 +30,6 @@ object RedisClient {
     fun delete(key: String) {
         commands.del(key)
     }
+
+    fun increment(key: String): Long = commands.incr(key)
 }
