@@ -1,5 +1,6 @@
 package com.renangsilveira.plugins
 
+import com.renangsilveira.domain.token.RefreshTokenRepository
 import com.renangsilveira.domain.user.UserRepository
 import com.renangsilveira.features.auth.AuthRequest
 import com.renangsilveira.features.auth.AuthService
@@ -12,11 +13,17 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.serialization.Serializable
+import java.time.LocalDateTime
+
+@Serializable
+data class RefreshRequest(val refreshToken: String)
 
 fun Application.configureRouting() {
-    val userRepository = UserRepository()
-    val authService = AuthService(userRepository)
-    val jwtService = JwtService(this)
+    val userRepository         = UserRepository()
+    val refreshTokenRepository = RefreshTokenRepository()
+    val jwtService             = JwtService(this)
+    val authService            = AuthService(userRepository, refreshTokenRepository, jwtService)
 
     routing {
         get("/health") {
@@ -55,12 +62,19 @@ fun Application.configureRouting() {
 
                 when (val result = authService.login(request.email, request.password)) {
                     is AuthService.AuthResult.Success -> {
-                        val user = result.user
+                        val user         = result.user
+                        val accessToken  = jwtService.generateAccessToken(user.id, user.email)
+                        val refreshToken = jwtService.generateRefreshToken(user.id)
+                        val expiresAt    = LocalDateTime.now()
+                            .plusSeconds(jwtService.refreshTokenExpirationMs / 1000)
+
+                        refreshTokenRepository.create(user.id, refreshToken, expiresAt)
+
                         call.respond(
                             HttpStatusCode.OK,
                             TokenResponse(
-                                accessToken  = jwtService.generateAccessToken(user.id, user.email),
-                                refreshToken = jwtService.generateRefreshToken(user.id),
+                                accessToken  = accessToken,
+                                refreshToken = refreshToken,
                                 expiresIn    = jwtService.accessTokenExpirationMs / 1000
                             )
                         )
@@ -72,6 +86,29 @@ fun Application.configureRouting() {
                     is AuthService.AuthResult.Error -> call.respond(
                         HttpStatusCode.BadRequest,
                         ErrorResponse("VALIDATION_ERROR", result.message)
+                    )
+                    else -> call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse("INTERNAL_ERROR", "Unexpected error")
+                    )
+                }
+            }
+
+            post("/refresh") {
+                val request = call.receive<RefreshRequest>()
+
+                when (val result = authService.refresh(request.refreshToken)) {
+                    is AuthService.AuthResult.TokenPair -> call.respond(
+                        HttpStatusCode.OK,
+                        TokenResponse(
+                            accessToken  = result.accessToken,
+                            refreshToken = result.refreshToken,
+                            expiresIn    = jwtService.accessTokenExpirationMs / 1000
+                        )
+                    )
+                    is AuthService.AuthResult.InvalidToken -> call.respond(
+                        HttpStatusCode.Unauthorized,
+                        ErrorResponse("UNAUTHORIZED", "Invalid or expired refresh token")
                     )
                     else -> call.respond(
                         HttpStatusCode.InternalServerError,
