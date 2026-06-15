@@ -20,7 +20,29 @@ jacoco {
     toolVersion = "0.8.12"
 }
 
+sourceSets {
+    create("integrationTest") {
+        kotlin.srcDir("src/integrationTest/kotlin")
+        resources.srcDir("src/integrationTest/resources")
+        compileClasspath += sourceSets["main"].output + sourceSets["test"].output
+        runtimeClasspath += sourceSets["main"].output + sourceSets["test"].output
+    }
+}
+
+configurations["integrationTestImplementation"].extendsFrom(configurations["testImplementation"])
+configurations["integrationTestRuntimeOnly"].extendsFrom(configurations["testRuntimeOnly"])
+
+tasks.register<Test>("integrationTest") {
+    description = "Runs integration tests"
+    group = "verification"
+    testClassesDirs = sourceSets["integrationTest"].output.classesDirs
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter("test")
+}
+
 tasks.test {
+    useJUnitPlatform()
     finalizedBy(tasks.jacocoTestReport)
 }
 
@@ -68,8 +90,13 @@ dependencies {
     implementation(libs.logback.classic)
 
     // Test
-    testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit5"))
     testImplementation(ktorLibs.server.testHost)
-    testImplementation(libs.testcontainers.core)
-    testImplementation(libs.testcontainers.postgresql)
+
+    // Integration Test
+    "integrationTestImplementation"(kotlin("test-junit5"))
+    "integrationTestImplementation"(ktorLibs.server.testHost)
+    "integrationTestImplementation"(libs.testcontainers.core)
+    "integrationTestImplementation"(libs.testcontainers.postgresql)
+    "integrationTestImplementation"(libs.testcontainers.junit)
 }
