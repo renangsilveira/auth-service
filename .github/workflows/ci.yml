@@ -39,5 +39,12 @@ jobs:
       - name: Integration tests
         run: ./gradlew integrationTest
 
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: build/reports/tests/
+
       - name: Generate coverage report
         run: ./gradlew jacocoTestReport
