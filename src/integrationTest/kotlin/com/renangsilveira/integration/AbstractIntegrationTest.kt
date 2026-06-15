@@ -11,13 +11,6 @@ import org.testcontainers.utility.DockerImageName
 abstract class AbstractIntegrationTest {
 
     companion object {
-        private val calimaSocket = "${System.getProperty("user.home")}/.colima/default/docker.sock"
-
-        init {
-            System.setProperty("DOCKER_HOST", "unix://$calimaSocket")
-            System.setProperty("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE", calimaSocket)
-        }
-
         private val postgres: PostgreSQLContainer<*> by lazy {
             PostgreSQLContainer(DockerImageName.parse("postgres:16-alpine")).apply {
                 withDatabaseName("auth_service_test")
@@ -48,7 +41,8 @@ abstract class AbstractIntegrationTest {
                 "jwt.issuer" to "auth-service",
                 "jwt.audience" to "auth-service-users",
                 "jwt.accessTokenExpirationMs" to "900000",
-                "jwt.refreshTokenExpirationMs" to "604800000"
+                "jwt.refreshTokenExpirationMs" to "604800000",
+                "rateLimit.enabled" to "false"
             )
         }
     }

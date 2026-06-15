@@ -4,7 +4,7 @@ import com.renangsilveira.features.auth.ErrorResponse
 import com.renangsilveira.infrastructure.redis.RedisClient
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.plugins.*
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
@@ -13,6 +13,11 @@ private const val RATE_LIMIT_WINDOW_SECONDS = 60L
 
 val RateLimitPlugin = createRouteScopedPlugin("RateLimitPlugin") {
     onCall { call ->
+        val rateLimitEnabled = call.application.environment.config
+            .propertyOrNull("rateLimit.enabled")?.getString()?.toBoolean() ?: true
+
+        if (!rateLimitEnabled) return@onCall
+
         val ip = call.request.origin.remoteHost
         val key = "rate_limit:$ip"
 
