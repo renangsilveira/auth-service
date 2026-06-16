@@ -54,6 +54,24 @@ tasks.jacocoTestReport {
     }
 }
 
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.50".toBigDecimal()
+            }
+        }
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("com.github.docker-java:docker-java-api:3.5.0")
+        force("com.github.docker-java:docker-java-transport:3.5.0")
+        force("com.github.docker-java:docker-java-transport-zerodep:3.5.0")
+    }
+}
+
 dependencies {
     // Ktor server
     implementation(ktorLibs.server.core)
