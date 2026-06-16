@@ -37,7 +37,7 @@ jobs:
         run: ./gradlew build
 
       - name: Integration tests
-        run: ./gradlew integrationTest --info 2>&1 | grep -A 20 "FAILED\|AssertionFailed\|expected\|but was" | head -60
+        run: ./gradlew integrationTest --info 2>&1 | grep -E "FAILED|ERROR|Exception|expected|but was|Unhandled" | head -40
 
       - name: Upload test reports
         if: always()

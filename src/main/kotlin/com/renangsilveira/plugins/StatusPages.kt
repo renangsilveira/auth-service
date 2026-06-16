@@ -15,10 +15,10 @@ fun Application.configureStatusPages() {
             )
         }
         exception<Throwable> { call, cause ->
-            call.application.log.error("Unhandled exception", cause)
+            call.application.log.error("Unhandled exception on ${call.request.local.uri}", cause)
             call.respond(
                 HttpStatusCode.InternalServerError,
-                ErrorResponse("INTERNAL_ERROR", "An unexpected error occurred")
+                ErrorResponse("INTERNAL_ERROR", cause.message ?: "An unexpected error occurred")
             )
         }
     }
