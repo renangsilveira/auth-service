@@ -42,31 +42,57 @@ The service:
 
 ## Architecture
 ┌─────────────────────────────────┐
+
 │          REST Clients           │
+
 └────────────────┬────────────────┘
+
 │ HTTP
+
 ┌────────────────▼────────────────┐
+
 │         Ktor Routes             │
+
 │  /auth/register                 │
+
 │  /auth/login                    │
+
 │  /auth/refresh                  │
+
 │  /auth/logout                   │
+
 │  /auth/me  (protected)          │
+
 └──────┬──────────────┬───────────┘
+
 │              │
+
 ┌──────▼──────┐ ┌─────▼───────────┐
+
 │  UserService│ │  TokenService   │
+
 │             │ │                 │
+
 │  BCrypt     │ │  JWT generation │
+
 │  hashing    │ │  token rotation │
+
 └──────┬──────┘ └─────┬───────────┘
+
 │              │
+
 ┌──────▼──────┐ ┌─────▼───────────┐
+
 │  PostgreSQL │ │  Redis          │
+
 │             │ │                 │
+
 │  users      │ │  token blacklist│
+
 │  refresh_   │ │  rate limiting  │
+
 │  tokens     │ │  (sliding win.) │
+
 └─────────────┘ └─────────────────┘
 
 ---
@@ -75,7 +101,7 @@ The service:
 
 ### Prerequisites
 
-- Docker Desktop
+- Docker Desktop or Colima
 - JDK 21
 
 ### 1. Start infrastructure
@@ -98,13 +124,21 @@ Service starts on `http://localhost:8080`.
 docker compose --profile app up --build
 ```
 
-### 4. Run tests
+### 4. Run unit tests
 
 ```bash
 ./gradlew test
 ```
 
-### 5. Open Swagger UI
+### 5. Run integration tests
+
+Integration tests require Docker. They run automatically on CI.
+
+```bash
+./gradlew integrationTest
+```
+
+### 6. Open Swagger UI
 
 http://localhost:8080/swagger
 
@@ -112,14 +146,25 @@ http://localhost:8080/swagger
 
 ## API reference
 
-| Method   | Path                  | Auth required | Description                        |
-|----------|-----------------------|---------------|------------------------------------|
-| `POST`   | `/api/v1/auth/register` | No          | Register a new user                |
-| `POST`   | `/api/v1/auth/login`    | No          | Authenticate and receive token pair|
-| `POST`   | `/api/v1/auth/refresh`  | No          | Rotate refresh token               |
-| `POST`   | `/api/v1/auth/logout`   | Yes         | Revoke access token                |
-| `GET`    | `/api/v1/auth/me`       | Yes         | Get authenticated user info        |
-| `GET`    | `/health`               | No          | Health check                       |
+| Method   | Path                    | Auth required | Description                         |
+|----------|-------------------------|---------------|-------------------------------------|
+| `POST`   | `/api/v1/auth/register` | No            | Register a new user                 |
+| `POST`   | `/api/v1/auth/login`    | No            | Authenticate and receive token pair |
+| `POST`   | `/api/v1/auth/refresh`  | No            | Rotate refresh token                |
+| `POST`   | `/api/v1/auth/logout`   | Yes           | Revoke access token                 |
+| `GET`    | `/api/v1/auth/me`       | Yes           | Get authenticated user info         |
+| `GET`    | `/health`               | No            | Health check                        |
+| `GET`    | `/swagger`              | No            | Swagger UI                          |
+
+---
+
+## Architectural decisions
+
+| ADR | Decision |
+|-----|----------|
+| [ADR-001](docs/adr/ADR-001-jwt-strategy.md) | JWT access token + refresh token rotation with `jti` claim |
+| [ADR-002](docs/adr/ADR-002-redis-token-blacklist.md) | Redis-backed token blacklist for immediate logout |
+| [ADR-003](docs/adr/ADR-003-rate-limiting.md) | IP-based rate limiting with Redis sliding window |
 
 ---
 
@@ -127,7 +172,7 @@ http://localhost:8080/swagger
 
 ### JWT access token + refresh token rotation
 
-Access tokens are short-lived (15 minutes) to minimize exposure. Refresh tokens are long-lived (7 days) and stored in PostgreSQL. On every refresh, the old token is invalidated and a new pair is issued — preventing replay attacks.
+Access tokens are short-lived (15 minutes) to minimize exposure. Refresh tokens are long-lived (7 days) and stored in PostgreSQL. On every refresh, the old token is invalidated and a new pair is issued — preventing replay attacks. Each token includes a unique `jti` claim to prevent duplicate key violations.
 
 ### Redis-backed token blacklist
 
@@ -153,3 +198,4 @@ Database schema is managed exclusively through versioned Flyway migrations. Expo
 - OAuth2 / social login (Google, GitHub)
 - Email verification flow
 - Multi-factor authentication (TOTP)
+- Refresh token family tracking for compromised token detection
