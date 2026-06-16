@@ -4,15 +4,18 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.json.*
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 class AuthLoginTest : AbstractIntegrationTest() {
 
+    private fun uniqueEmail(prefix: String) = "$prefix+${UUID.randomUUID()}@test.com"
+
     private suspend fun io.ktor.server.testing.ApplicationTestBuilder.registerUser(
         email: String,
-        password: String
+        password: String = "password123"
     ) {
         client.post("/api/v1/auth/register") {
             contentType(ContentType.Application.Json)
@@ -22,11 +25,12 @@ class AuthLoginTest : AbstractIntegrationTest() {
 
     @Test
     fun `login returns 200 with token pair`() = integrationTest {
-        registerUser("login1@test.com", "password123")
+        val email = uniqueEmail("login1")
+        registerUser(email)
 
         val response = client.post("/api/v1/auth/login") {
             contentType(ContentType.Application.Json)
-            setBody("""{"email":"login1@test.com","password":"password123"}""")
+            setBody("""{"email":"$email","password":"password123"}""")
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
@@ -39,11 +43,12 @@ class AuthLoginTest : AbstractIntegrationTest() {
 
     @Test
     fun `login returns 401 for wrong password`() = integrationTest {
-        registerUser("login2@test.com", "password123")
+        val email = uniqueEmail("login2")
+        registerUser(email)
 
         val response = client.post("/api/v1/auth/login") {
             contentType(ContentType.Application.Json)
-            setBody("""{"email":"login2@test.com","password":"wrongpassword"}""")
+            setBody("""{"email":"$email","password":"wrongpassword"}""")
         }
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -55,7 +60,7 @@ class AuthLoginTest : AbstractIntegrationTest() {
     fun `login returns 401 for non-existent user`() = integrationTest {
         val response = client.post("/api/v1/auth/login") {
             contentType(ContentType.Application.Json)
-            setBody("""{"email":"ghost@test.com","password":"password123"}""")
+            setBody("""{"email":"ghost+${UUID.randomUUID()}@test.com","password":"password123"}""")
         }
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -65,11 +70,12 @@ class AuthLoginTest : AbstractIntegrationTest() {
 
     @Test
     fun `login returns valid JWT that grants access to protected route`() = integrationTest {
-        registerUser("login3@test.com", "password123")
+        val email = uniqueEmail("login3")
+        registerUser(email)
 
         val loginResponse = client.post("/api/v1/auth/login") {
             contentType(ContentType.Application.Json)
-            setBody("""{"email":"login3@test.com","password":"password123"}""")
+            setBody("""{"email":"$email","password":"password123"}""")
         }
 
         val loginBody = Json.parseToJsonElement(loginResponse.bodyAsText()).jsonObject
@@ -81,6 +87,6 @@ class AuthLoginTest : AbstractIntegrationTest() {
 
         assertEquals(HttpStatusCode.OK, meResponse.status)
         val meBody = Json.parseToJsonElement(meResponse.bodyAsText()).jsonObject
-        assertEquals("login3@test.com", meBody["email"]?.jsonPrimitive?.content)
+        assertEquals(email, meBody["email"]?.jsonPrimitive?.content)
     }
 }

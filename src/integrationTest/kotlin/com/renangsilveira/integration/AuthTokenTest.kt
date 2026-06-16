@@ -4,12 +4,15 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.json.*
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 
 class AuthTokenTest : AbstractIntegrationTest() {
+
+    private fun uniqueEmail(prefix: String) = "$prefix+${UUID.randomUUID()}@test.com"
 
     private suspend fun io.ktor.server.testing.ApplicationTestBuilder.registerAndLogin(
         email: String,
@@ -28,7 +31,7 @@ class AuthTokenTest : AbstractIntegrationTest() {
 
     @Test
     fun `refresh returns new token pair`() = integrationTest {
-        val tokens = registerAndLogin("refresh1@test.com")
+        val tokens = registerAndLogin(uniqueEmail("refresh1"))
         val refreshToken = tokens["refreshToken"]?.jsonPrimitive?.content!!
 
         val response = client.post("/api/v1/auth/refresh") {
@@ -45,7 +48,7 @@ class AuthTokenTest : AbstractIntegrationTest() {
 
     @Test
     fun `refresh invalidates old refresh token`() = integrationTest {
-        val tokens = registerAndLogin("refresh2@test.com")
+        val tokens = registerAndLogin(uniqueEmail("refresh2"))
         val refreshToken = tokens["refreshToken"]?.jsonPrimitive?.content!!
 
         client.post("/api/v1/auth/refresh") {
@@ -73,7 +76,7 @@ class AuthTokenTest : AbstractIntegrationTest() {
 
     @Test
     fun `logout invalidates access token`() = integrationTest {
-        val tokens = registerAndLogin("logout1@test.com")
+        val tokens = registerAndLogin(uniqueEmail("logout1"))
         val accessToken = tokens["accessToken"]?.jsonPrimitive?.content!!
 
         val logoutResponse = client.post("/api/v1/auth/logout") {
