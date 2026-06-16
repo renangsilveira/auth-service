@@ -37,7 +37,7 @@ jobs:
         run: ./gradlew build
 
       - name: Integration tests
-        run: ./gradlew integrationTest
+        run: ./gradlew integrationTest --info 2>&1 | grep -A 20 "FAILED\|AssertionFailed\|expected\|but was" | head -60
 
       - name: Upload test reports
         if: always()
@@ -47,4 +47,5 @@ jobs:
           path: build/reports/tests/
 
       - name: Generate coverage report
+        if: always()
         run: ./gradlew jacocoTestReport
