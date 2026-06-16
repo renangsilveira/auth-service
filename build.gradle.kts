@@ -82,6 +82,8 @@ dependencies {
     implementation(ktorLibs.server.contentNegotiation)
     implementation(ktorLibs.server.cors)
     implementation(ktorLibs.server.statusPages)
+    implementation(ktorLibs.server.openapi)
+    implementation(ktorLibs.server.swagger)
 
     // Serialization
     implementation(ktorLibs.serialization.kotlinx.json)

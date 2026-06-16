@@ -12,6 +12,8 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
+import io.ktor.server.plugins.openapi.*
+import io.ktor.server.plugins.swagger.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -29,6 +31,9 @@ fun Application.configureRouting(
     refreshTokenRepository: RefreshTokenRepository
 ) {
     routing {
+        swaggerUI(path = "swagger", swaggerFile = "openapi.yaml")
+        openAPI(path = "openapi", swaggerFile = "openapi.yaml")
+
         get("/health") {
             call.respond(HttpStatusCode.OK, mapOf("status" to "UP"))
         }
@@ -37,7 +42,6 @@ fun Application.configureRouting(
             withRateLimit {
                 post("/register") {
                     val request = call.receive<AuthRequest.RegisterRequest>()
-
                     when (val result = authService.register(request.email, request.password)) {
                         is AuthService.AuthResult.Success -> call.respond(
                             HttpStatusCode.Created,
@@ -60,23 +64,20 @@ fun Application.configureRouting(
 
                 post("/login") {
                     val request = call.receive<AuthRequest.LoginRequest>()
-
                     when (val result = authService.login(request.email, request.password)) {
                         is AuthService.AuthResult.Success -> {
-                            val user         = result.user
-                            val accessToken  = jwtService.generateAccessToken(user.id, user.email)
+                            val user = result.user
+                            val accessToken = jwtService.generateAccessToken(user.id, user.email)
                             val refreshToken = jwtService.generateRefreshToken(user.id)
-                            val expiresAt    = LocalDateTime.now()
+                            val expiresAt = LocalDateTime.now()
                                 .plusSeconds(jwtService.refreshTokenExpirationMs / 1000)
-
                             refreshTokenRepository.create(user.id, refreshToken, expiresAt)
-
                             call.respond(
                                 HttpStatusCode.OK,
                                 TokenResponse(
-                                    accessToken  = accessToken,
+                                    accessToken = accessToken,
                                     refreshToken = refreshToken,
-                                    expiresIn    = jwtService.accessTokenExpirationMs / 1000
+                                    expiresIn = jwtService.accessTokenExpirationMs / 1000
                                 )
                             )
                         }
@@ -97,14 +98,13 @@ fun Application.configureRouting(
 
                 post("/refresh") {
                     val request = call.receive<RefreshRequest>()
-
                     when (val result = authService.refresh(request.refreshToken)) {
                         is AuthService.AuthResult.TokenPair -> call.respond(
                             HttpStatusCode.OK,
                             TokenResponse(
-                                accessToken  = result.accessToken,
+                                accessToken = result.accessToken,
                                 refreshToken = result.refreshToken,
-                                expiresIn    = jwtService.accessTokenExpirationMs / 1000
+                                expiresIn = jwtService.accessTokenExpirationMs / 1000
                             )
                         )
                         is AuthService.AuthResult.InvalidToken -> call.respond(
@@ -124,9 +124,7 @@ fun Application.configureRouting(
                             HttpStatusCode.Unauthorized,
                             ErrorResponse("UNAUTHORIZED", "Missing Authorization header")
                         )
-
                     val token = authHeader.removePrefix("Bearer ").trim()
-
                     when (authService.logout(token)) {
                         is AuthService.AuthResult.LoggedOut -> call.respond(HttpStatusCode.NoContent)
                         is AuthService.AuthResult.InvalidToken -> call.respond(
@@ -144,13 +142,12 @@ fun Application.configureRouting(
             authenticate("jwt-auth") {
                 get("/me") {
                     val principal = call.principal<JWTPrincipal>()!!
-                    val userId    = UUID.fromString(principal.payload.subject)
-                    val user      = userRepository.findById(userId)
+                    val userId = UUID.fromString(principal.payload.subject)
+                    val user = userRepository.findById(userId)
                         ?: return@get call.respond(
                             HttpStatusCode.NotFound,
                             ErrorResponse("NOT_FOUND", "User not found")
                         )
-
                     call.respond(
                         HttpStatusCode.OK,
                         UserResponse(id = user.id.toString(), email = user.email)
